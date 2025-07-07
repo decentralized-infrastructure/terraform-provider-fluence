@@ -1,0 +1,43 @@
+version: 2
+project_name: terraform-provider-fluence
+
+dist: dist
+
+builds:
+  - id: terraform-provider-fluence
+    main: .
+    binary: terraform-provider-fluence
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - id: terraform-provider-fluence
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}.zip"
+    files:
+      - LICENSE
+      - README.md
+    wrap_in_directory: false
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  github:
+    owner: decentralized-infrastructure
+    name: terraform-provider-fluence
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'

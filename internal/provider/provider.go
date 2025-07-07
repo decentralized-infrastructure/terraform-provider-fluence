@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	fluenceapi "github.com/0xthresh/fluence-api-client-go"
+	fluenceapi "github.com/decentralized-infrastructure/fluence-api-client-go"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
