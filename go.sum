@@ -1,5 +1,3 @@
-github.com/0xthresh/fluence-api-client-go v0.1.0 h1:durfDZ+6FafjF414z5zTpmdacLO8aCuGwaxKpepRMwM=
-github.com/0xthresh/fluence-api-client-go v0.1.0/go.mod h1:91N428+btmNKlBn2y48P2ABh6mzZ3++d6E6sxjiErV8=
 github.com/bufbuild/protocompile v0.4.0 h1:LbFKd2XowZvQ/kajzguUp2DC9UEIQhIq77fZZlaQsNA=
 github.com/bufbuild/protocompile v0.4.0/go.mod h1:3v93+mbWn/v3xzN+31nwkJfrEpAUwp+BagBSZWx+TP8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

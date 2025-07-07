@@ -45,6 +45,7 @@ type VmResourceModel struct {
 
 	// Computed fields
 	Status          types.String `tfsdk:"status"`
+	StatusChangedAt types.String `tfsdk:"status_changed_at"`
 	PricePerEpoch   types.String `tfsdk:"price_per_epoch"`
 	CreatedAt       types.String `tfsdk:"created_at"`
 	NextBillingAt   types.String `tfsdk:"next_billing_at"`
@@ -136,6 +137,10 @@ func (r *VmResource) Schema(ctx context.Context, req resource.SchemaRequest, res
 			"status": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "VM status",
+			},
+			"status_changed_at": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "VM status change timestamp",
 			},
 			"price_per_epoch": schema.StringAttribute{
 				Computed:            true,
@@ -376,6 +381,7 @@ func (r *VmResource) refreshVmData(ctx context.Context, data *VmResourceModel) e
 
 			// Update the model with the current data
 			data.Status = types.StringValue(foundVm.Status)
+			data.StatusChangedAt = types.StringValue(foundVm.StatusChangedAt)
 			data.PricePerEpoch = types.StringValue(foundVm.PricePerEpoch)
 			data.CreatedAt = types.StringValue(foundVm.CreatedAt)
 			data.NextBillingAt = types.StringValue(foundVm.NextBillingAt)

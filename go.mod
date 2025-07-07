@@ -2,6 +2,8 @@ module terraform-provider-fluence
 
 go 1.23.7
 
+replace github.com/0xthresh/fluence-api-client-go => ./client
+
 require (
 	github.com/0xthresh/fluence-api-client-go v0.1.0
 	github.com/hashicorp/terraform-plugin-framework v1.15.0

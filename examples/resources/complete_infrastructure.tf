@@ -1,27 +1,46 @@
-# Create SSH keys for VM access - using valid SSH keys
-resource "fluence_ssh_key" "admin" {
-  name       = "admin-key"
-  public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAD0WOgqjaY9EBuhEYg0nTQNuHwGH0Tg/YgtS57VF4g9 admin@example.com"
+terraform {
+  required_providers {
+    fluence = {
+      source = "hashicorp.com/decentralized-infrastructure/fluence"
+      version = "~> 1.0"
+    }
+  }
 }
 
-resource "fluence_ssh_key" "deploy" {
-  name       = "deploy-key"
-  public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKz6FlQh0x1gzrHjWyKW5W1z6DqGLv6Ks1Z1Z1Z1Z1Z1 deploy@example.com"
+provider "fluence" {
+  # Configuration options:
+  # host     = "https://api.fluence.dev"  # Optional, defaults to this value
+  # api_key  = "your-api-key"             # Or set FLUENCE_API_KEY env var
 }
 
-# Create a web server VM
+# Get available marketplace data to make informed decisions
+data "fluence_available_countries" "all" {}
+data "fluence_available_hardware" "all" {}
+data "fluence_basic_configurations" "all" {}
+
+# List existing VMs
+data "fluence_vms" "existing" {}
+
+# List existing SSH keys
+data "fluence_ssh_keys" "existing" {}
+
+# Create an SSH key for the VM
+resource "fluence_ssh_key" "vm_key" {
+  name       = "terraform-infrastructure-key"
+  # Replace with your actual public key associated with a private key you control
+  public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKgJIjnDg1DjqOOxINs78oU3f7PJXIyq9uiNocNVhXNx user@example.com"
+}
+
+# Create a VM using the SSH key and marketplace data
 resource "fluence_vm" "web_server" {
-  name     = "web-server"
-  hostname = "web01"
-  os_image = "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"
+  name     = "terraform-web-server"
+  hostname = "web-01"
+  os_image = "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
   
-  # Use the SSH keys we just created
-  ssh_keys = [
-    fluence_ssh_key.admin.fingerprint,
-    fluence_ssh_key.deploy.fingerprint
-  ]
+  # Reference the SSH key we created
+  ssh_keys = [fluence_ssh_key.vm_key.name]
   
-  # Open web server ports
+  # Open ports for web server
   open_ports = [
     {
       port     = 22
@@ -34,92 +53,59 @@ resource "fluence_vm" "web_server" {
     {
       port     = 443
       protocol = "tcp"
-    },
-    {
-      port     = 3000
-      protocol = "tcp"
     }
   ]
   
-  # VM configuration
-  instances                      = 1
-  basic_configuration           = "medium"
-  max_total_price_per_epoch_usd = "25.0"
-  datacenter_countries          = ["US", "CA", "EU"]
+  # VM configuration - use available basic configurations
+  instances           = 1
+  basic_configuration = data.fluence_basic_configurations.all.configurations[1] # cpu-4-ram-8gb-storage-25gb
+  
+  # Budget and location constraints using available data
+  max_total_price_per_epoch_usd = "10.0"
+  datacenter_countries          = slice(data.fluence_available_countries.all.countries, 0, 2) # First 2 countries
+  
+  # Ensure SSH key is created first
+  depends_on = [fluence_ssh_key.vm_key]
 }
 
-# Create a database VM
-resource "fluence_vm" "database" {
-  name     = "database"
-  hostname = "db01"
-  os_image = "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"
-  
-  # Use only the admin SSH key for the database
-  ssh_keys = [
-    fluence_ssh_key.admin.fingerprint
-  ]
-  
-  # Open database ports
-  open_ports = [
-    {
-      port     = 22
-      protocol = "tcp"
-    },
-    {
-      port     = 5432
-      protocol = "tcp"
-    },
-    {
-      port     = 6379
-      protocol = "tcp"
+# Outputs showing the complete infrastructure
+output "infrastructure_summary" {
+  value = {
+    ssh_key = {
+      name        = fluence_ssh_key.vm_key.name
+      fingerprint = fluence_ssh_key.vm_key.fingerprint
+      created_at  = fluence_ssh_key.vm_key.created_at
     }
-  ]
-  
-  # Database VM configuration
-  instances                      = 1
-  basic_configuration           = "large"
-  max_total_price_per_epoch_usd = "50.0"
-  datacenter_countries          = ["US", "CA"]
-}
-
-# Read all VMs to see what we've created
-data "fluence_vms" "all" {
-  depends_on = [
-    fluence_vm.web_server,
-    fluence_vm.database
-  ]
-}
-
-# Outputs
-output "ssh_keys" {
-  value = {
-    admin  = fluence_ssh_key.admin.fingerprint
-    deploy = fluence_ssh_key.deploy.fingerprint
+    vm = {
+      id                = fluence_vm.web_server.id
+      name              = fluence_vm.web_server.name
+      status            = fluence_vm.web_server.status
+      public_ip         = fluence_vm.web_server.public_ip
+      price_per_epoch   = fluence_vm.web_server.price_per_epoch
+      created_at        = fluence_vm.web_server.created_at
+      status_changed_at = fluence_vm.web_server.status_changed_at
+    }
   }
+  description = "Complete infrastructure details"
 }
 
-output "web_server" {
+output "marketplace_data" {
   value = {
-    id        = fluence_vm.web_server.id
-    name      = fluence_vm.web_server.name
-    hostname  = fluence_vm.web_server.hostname
-    status    = fluence_vm.web_server.status
-    public_ip = fluence_vm.web_server.public_ip
-    price     = fluence_vm.web_server.price_per_epoch
+    available_countries      = data.fluence_available_countries.all.countries
+    available_configurations = data.fluence_basic_configurations.all.configurations
+    hardware_options = {
+      cpu_types     = data.fluence_available_hardware.all.cpu
+      memory_types  = data.fluence_available_hardware.all.memory
+      storage_types = data.fluence_available_hardware.all.storage
+    }
   }
+  description = "Available marketplace options"
 }
 
-output "database" {
+output "existing_resources" {
   value = {
-    id        = fluence_vm.database.id
-    name      = fluence_vm.database.name
-    hostname  = fluence_vm.database.hostname
-    status    = fluence_vm.database.status
-    public_ip = fluence_vm.database.public_ip
-    price     = fluence_vm.database.price_per_epoch
+    existing_vms     = length(data.fluence_vms.existing.vms)
+    existing_ssh_keys = length(data.fluence_ssh_keys.existing.ssh_keys)
   }
-}
-
-output "all_vms" {
-  value = data.fluence_vms.all
+  description = "Count of existing resources"
 }

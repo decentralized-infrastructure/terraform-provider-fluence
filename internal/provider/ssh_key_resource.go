@@ -56,15 +56,8 @@ func (r *SshKeyResource) Schema(ctx context.Context, req resource.SchemaRequest,
 				},
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "SSH Key name",
-				Required:            true,
-			},
-			"public_key": schema.StringAttribute{
-				MarkdownDescription: "SSH public key content",
-				Required:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
+				MarkdownDescription: "SSH Key name (optional)",
+				Optional:            true,
 			},
 			"fingerprint": schema.StringAttribute{
 				Computed:            true,
@@ -85,6 +78,11 @@ func (r *SshKeyResource) Schema(ctx context.Context, req resource.SchemaRequest,
 			"created_at": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "SSH Key creation time",
+			},
+			"public_key": schema.StringAttribute{
+				Required:            true,
+				Sensitive:           true,
+				MarkdownDescription: "SSH public key content",
 			},
 		},
 	}
@@ -120,10 +118,22 @@ func (r *SshKeyResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
+	// Get the public key directly from the plan since it's not in the model
+	var publicKey types.String
+	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root("public_key"), &publicKey)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	// Create SSH key using the client
 	createReq := fluenceapi.AddSshKey{
-		Name:      data.Name.ValueString(),
-		PublicKey: data.PublicKey.ValueString(),
+		PublicKey: publicKey.ValueString(),
+	}
+
+	// Set name if provided
+	if !data.Name.IsNull() && !data.Name.IsUnknown() {
+		name := data.Name.ValueString()
+		createReq.Name = &name
 	}
 
 	sshKey, err := r.client.CreateSshKey(createReq)
@@ -135,7 +145,11 @@ func (r *SshKeyResource) Create(ctx context.Context, req resource.CreateRequest,
 	// Map response to resource model
 	// Use fingerprint as ID since it's unique and always returned
 	data.ID = types.StringValue(sshKey.Fingerprint)
-	data.Name = types.StringValue(sshKey.Name)
+	if sshKey.Name != nil {
+		data.Name = types.StringValue(*sshKey.Name)
+	} else {
+		data.Name = types.StringNull()
+	}
 	data.PublicKey = types.StringValue(sshKey.PublicKey)
 	data.Fingerprint = types.StringValue(sshKey.Fingerprint)
 	data.Algorithm = types.StringValue(sshKey.Algorithm)
@@ -183,7 +197,11 @@ func (r *SshKeyResource) Read(ctx context.Context, req resource.ReadRequest, res
 	}
 
 	// Update the model with the current data
-	data.Name = types.StringValue(foundKey.Name)
+	if foundKey.Name != nil {
+		data.Name = types.StringValue(*foundKey.Name)
+	} else {
+		data.Name = types.StringNull()
+	}
 	data.PublicKey = types.StringValue(foundKey.PublicKey)
 	data.Fingerprint = types.StringValue(foundKey.Fingerprint)
 	data.Algorithm = types.StringValue(foundKey.Algorithm)

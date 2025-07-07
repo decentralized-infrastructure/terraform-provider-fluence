@@ -65,6 +65,9 @@ func (d *vmsDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, re
 						"status": schema.StringAttribute{
 							Computed: true,
 						},
+						"status_changed_at": schema.StringAttribute{
+							Computed: true,
+						},
 						"price_per_epoch": schema.StringAttribute{
 							Computed: true,
 						},
@@ -105,6 +108,7 @@ type vmsDataSourceModel struct {
 type vmModel struct {
 	ID              types.String `tfsdk:"id"`
 	Status          types.String `tfsdk:"status"`
+	StatusChangedAt types.String `tfsdk:"status_changed_at"`
 	PricePerEpoch   types.String `tfsdk:"price_per_epoch"`
 	CreatedAt       types.String `tfsdk:"created_at"`
 	NextBillingAt   types.String `tfsdk:"next_billing_at"`
@@ -133,6 +137,7 @@ func (d *vmsDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		vmState := vmModel{
 			ID:              types.StringValue(vm.Id),
 			Status:          types.StringValue(vm.Status),
+			StatusChangedAt: types.StringValue(vm.StatusChangedAt),
 			PricePerEpoch:   types.StringValue(vm.PricePerEpoch),
 			CreatedAt:       types.StringValue(vm.CreatedAt),
 			NextBillingAt:   types.StringValue(vm.NextBillingAt),
