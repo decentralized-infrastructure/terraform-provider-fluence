@@ -1,41 +1,95 @@
 # Fluence Terraform Provider Examples
 
-This directory contains examples of how to use the Fluence Terraform provider to manage SSH keys and virtual machines.
+This directory contains focused examples demonstrating how to use the Fluence Terraform provider to manage infrastructure on the Fluence decentralized compute marketplace.
 
-## Prerequisites
+## 📁 Directory Structure
 
-1. Set your Fluence API key as an environment variable:
+```
+examples/
+├── README.md                     # This file
+├── data-sources/                 # Data source examples
+│   ├── README.md                 # Data sources documentation
+│   └── data-source.tf           # Query marketplace and existing resources
+└── resources/                    # Resource management examples
+    ├── README.md                 # Resources documentation
+    ├── provider.tf               # Provider configuration
+    ├── ssh_key_simple.tf         # Simple SSH key example
+    ├── vm_simple.tf              # Simple VM example
+    └── complete_infrastructure.tf # Complete infrastructure example
+```
+
+## 🚀 Quick Start
+
+1. **Get API Key**: Obtain your API key from [Fluence Console](https://console.fluence.network/settings/api-keys)
+
+2. **Set Environment Variable**:
    ```bash
    export FLUENCE_API_KEY="your-api-key-here"
    ```
 
-2. Build and install the provider (from the root directory):
+3. **Choose an Example**: Navigate to the appropriate directory and copy the example that fits your needs
+
+4. **Initialize and Apply**:
    ```bash
-   go build -o terraform-provider-fluence
+   terraform init
+   terraform plan
+   terraform apply
    ```
 
-## Examples
+## 📚 Examples Overview
 
-### Data Sources
+### 🔐 SSH Key Management (`resources/ssh_key_simple.tf`)
+**Perfect for**: Learning SSH key basics only
+- Create and manage SSH keys
+- Access key attributes (fingerprint, algorithm, etc.)
+- Basic output examples
 
-- `data-sources/data-source.tf` - Shows how to read existing SSH keys from the Fluence API
+### 🖥️ Simple VM (`resources/vm_simple.tf`)  
+**Perfect for**: Self-contained VM setup
+- Create an SSH key and VM together
+- Configure ports, SSH access, and constraints
+- See both SSH key and VM outputs
 
-### Resources
+### 🏗️ Complete Infrastructure (`resources/complete_infrastructure.tf`)
+**Perfect for**: Data-driven, production-ready setups
+- Use marketplace data sources for optimal configuration
+- Create SSH keys and reference them in VMs
+- Make informed infrastructure decisions using available data
+- Comprehensive infrastructure and marketplace outputs
 
-- `resources/provider.tf` - Provider configuration
-- `resources/ssh_key.tf` - SSH key management examples
-- `resources/vm.tf` - Virtual machine management examples  
-- `resources/marketplace.tf` - Marketplace data sources examples
-- `resources/complete_infrastructure.tf` - Complete infrastructure example with multiple VMs and SSH keys
-- `resources/simple_vm.tf` - Simple VM creation example
-- `resources/complete_ssh_example.tf` - Comprehensive SSH key examples
+### 📊 Data Sources (`data-sources/data-source.tf`)
+**Perfect for**: Discovery and inventory
+- Query all available marketplace options
+- List existing resources in your account
+- Make informed infrastructure planning decisions
 
-## Features
+## 🎯 Learning Path
 
-### SSH Key Management
-- Create, read, update, and delete SSH keys
-- List all SSH keys in your account
-- Import existing SSH keys into Terraform state
+1. **Start Here**: `data-sources/` - Understand what's available
+2. **SSH Keys**: `resources/ssh_key_simple.tf` - Learn key management basics
+3. **Basic VM**: `resources/vm_simple.tf` - Create a self-contained VM setup
+4. **Advanced**: `resources/complete_infrastructure.tf` - Data-driven production patterns
+
+## 🔧 Prerequisites
+
+- **Terraform**: Version 1.0 or later
+- **Fluence API Key**: From [Fluence Console](https://console.fluence.network)
+- **SSH Public Key**: For VM access (can generate with `ssh-keygen`)
+
+## 💡 Common Patterns
+
+- **Environment Variables**: Use `FLUENCE_API_KEY` instead of hardcoding credentials
+- **Data Sources First**: Query available options before creating resources
+- **SSH Keys Before VMs**: Always create SSH keys before VMs that reference them
+- **Budget Constraints**: Set `max_total_price_per_epoch_usd` to control costs
+- **Location Preferences**: Use `datacenter_countries` for optimal latency
+
+## 📖 Next Steps
+
+- Review individual example READMEs for detailed usage
+- Check the [Fluence Documentation](https://fluence.dev/docs) for platform details
+- Explore the `swagger.json` file for complete API reference
+- Join the [Fluence Community](https://fluence.dev/community) for support
 
 ### Virtual Machine Management
 - Create, read, update, and delete virtual machines

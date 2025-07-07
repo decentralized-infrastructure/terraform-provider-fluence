@@ -44,5 +44,14 @@ examples/**/*.tfstate
 examples/**/*.tfstate.backup
 examples/**/.terraform/
 
-# Client (separate repo)
-client/*
+# Test and debug files
+test_*.tf
+test_*.tf.bak
+debug_*.go
+debug_*.tf
+
+# Client (maintained in separate repository)
+client
+
+# Fluence API documentation
+swagger.json

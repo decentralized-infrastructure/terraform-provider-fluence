@@ -171,6 +171,7 @@ func (p *fluenceProvider) DataSources(_ context.Context) []func() datasource.Dat
 		NewBasicConfigurationsDataSource,
 		NewAvailableCountriesDataSource,
 		NewAvailableHardwareDataSource,
+		NewEstimateDepositDataSource,
 	}
 }
 

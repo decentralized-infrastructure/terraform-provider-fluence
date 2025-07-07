@@ -39,7 +39,7 @@ This repository contains the [Fluence Cloudless VMs](https://console.fluence.net
    terraform {
      required_providers {
        fluence = {
-         source = "hashicorp.com/0xthresh/fluence"
+         source = "hashicorp.com/decentralized-infrastructure/fluence"
        }
      }
    }
@@ -51,7 +51,8 @@ This repository contains the [Fluence Cloudless VMs](https://console.fluence.net
    # Create an SSH key
    resource "fluence_ssh_key" "example" {
      name       = "my-key"
-     public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAD0WOgqjaY9EBuhEYg0nTQNuHwGH0Tg/YgtS57VF4g9 user@example.com"
+     # Replace with your actual public key associated with a private key you control
+     public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKgJIjnDg1DjqOOxINs78oU3f7PJXIyq9uiNocNVhXNx user@example.com"
    }
 
    # Create a VM
@@ -113,7 +114,7 @@ For development testing, you can use a `.terraformrc` file to override the provi
 ```hcl
 provider_installation {
   dev_overrides {
-    "hashicorp.com/0xthresh/fluence" = "/path/to/your/go/bin"
+    "hashicorp.com/decentralized-infrastructure/fluence" = "/path/to/your/go/bin"
   }
   direct {}
 }
