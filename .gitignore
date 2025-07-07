@@ -34,3 +34,15 @@ website/vendor
 
 # Keep windows files with windows line endings
 *.winfile eol=crlf
+
+# Development files
+terraform-provider-fluence
+.terraformrc
+
+# Example terraform state files
+examples/**/*.tfstate
+examples/**/*.tfstate.backup
+examples/**/.terraform/
+
+# Client (separate repo)
+client/*
