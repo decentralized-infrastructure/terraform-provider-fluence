@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	fluenceapi "github.com/0xthresh/fluence-api-client-go"
+	fluenceapi "github.com/decentralized-infrastructure/fluence-api-client-go"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"

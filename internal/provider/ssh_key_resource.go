@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	fluenceapi "github.com/0xthresh/fluence-api-client-go"
+	fluenceapi "github.com/decentralized-infrastructure/fluence-api-client-go"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -133,7 +133,7 @@ func (r *SshKeyResource) Create(ctx context.Context, req resource.CreateRequest,
 	// Set name if provided
 	if !data.Name.IsNull() && !data.Name.IsUnknown() {
 		name := data.Name.ValueString()
-		createReq.Name = &name
+		createReq.Name = name
 	}
 
 	sshKey, err := r.client.CreateSshKey(createReq)
