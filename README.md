@@ -119,3 +119,9 @@ provider_installation {
   direct {}
 }
 ```
+
+## Documenting the Provider
+In order to generate documentation for the provider, the following command can be run:
+```
+go get github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
+```
