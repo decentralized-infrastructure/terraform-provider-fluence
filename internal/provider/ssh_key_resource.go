@@ -81,7 +81,6 @@ func (r *SshKeyResource) Schema(ctx context.Context, req resource.SchemaRequest,
 			},
 			"public_key": schema.StringAttribute{
 				Required:            true,
-				Sensitive:           true,
 				MarkdownDescription: "SSH public key content",
 			},
 		},
@@ -118,16 +117,9 @@ func (r *SshKeyResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	// Get the public key directly from the plan since it's not in the model
-	var publicKey types.String
-	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root("public_key"), &publicKey)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
 	// Create SSH key using the client
 	createReq := fluenceapi.AddSshKey{
-		PublicKey: publicKey.ValueString(),
+		PublicKey: data.PublicKey.ValueString(),
 	}
 
 	// Set name if provided
@@ -150,7 +142,8 @@ func (r *SshKeyResource) Create(ctx context.Context, req resource.CreateRequest,
 	} else {
 		data.Name = types.StringNull()
 	}
-	data.PublicKey = types.StringValue(sshKey.PublicKey)
+	// Keep the original public_key from the configuration since API doesn't return it
+	// data.PublicKey is already set from the plan data above
 	data.Fingerprint = types.StringValue(sshKey.Fingerprint)
 	data.Algorithm = types.StringValue(sshKey.Algorithm)
 	data.Comment = types.StringValue(sshKey.Comment)
@@ -202,7 +195,8 @@ func (r *SshKeyResource) Read(ctx context.Context, req resource.ReadRequest, res
 	} else {
 		data.Name = types.StringNull()
 	}
-	data.PublicKey = types.StringValue(foundKey.PublicKey)
+	// Preserve the public_key from state since API doesn't return it
+	// data.PublicKey remains unchanged from the current state
 	data.Fingerprint = types.StringValue(foundKey.Fingerprint)
 	data.Algorithm = types.StringValue(foundKey.Algorithm)
 	data.Comment = types.StringValue(foundKey.Comment)
