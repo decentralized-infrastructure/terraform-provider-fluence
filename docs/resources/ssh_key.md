@@ -17,7 +17,7 @@ SSH Key resource
 
 ### Required
 
-- `public_key` (String, Sensitive) SSH public key content
+- `public_key` (String) SSH public key content
 
 ### Optional
 
