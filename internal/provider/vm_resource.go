@@ -6,6 +6,7 @@ import (
 	"time"
 
 	fluenceapi "github.com/decentralized-infrastructure/fluence-api-client-go"
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -52,6 +53,9 @@ type VmResourceModel struct {
 	ReservedBalance types.String `tfsdk:"reserved_balance"`
 	TotalSpent      types.String `tfsdk:"total_spent"`
 	PublicIp        types.String `tfsdk:"public_ip"`
+
+	// Timeouts
+	Timeouts timeouts.Value `tfsdk:"timeouts"`
 }
 
 // OpenPortModel represents an open port configuration
@@ -166,6 +170,11 @@ func (r *VmResource) Schema(ctx context.Context, req resource.SchemaRequest, res
 				Computed:            true,
 				MarkdownDescription: "Public IP address of the VM",
 			},
+		},
+		Blocks: map[string]schema.Block{
+			"timeouts": timeouts.Block(ctx, timeouts.Opts{
+				Create: true,
+			}),
 		},
 	}
 }
@@ -287,10 +296,16 @@ func (r *VmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		data.Name = types.StringValue(createdVm.VmName)
 	}
 
-	// Refresh the data by reading the current state
-	err = r.refreshVmData(ctx, &data)
+	// Wait for VM to become active before considering creation complete
+	createTimeout, diags := data.Timeouts.Create(ctx, 10*time.Minute)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	err = r.waitForVmActive(ctx, &data, createTimeout)
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to refresh VM data: %s", err))
+		resp.Diagnostics.AddError("VM Creation Error", fmt.Sprintf("VM was created but failed to become active: %s", err))
 		return
 	}
 
@@ -488,4 +503,114 @@ func (r *VmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 func (r *VmResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Use the ID field for import
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// waitForVmActive waits for a VM to reach the "Active" status
+func (r *VmResource) waitForVmActive(ctx context.Context, data *VmResourceModel, timeout time.Duration) error {
+	vmId := data.ID.ValueString()
+	tflog.Debug(ctx, "Waiting for VM to become active", map[string]interface{}{
+		"vm_id":   vmId,
+		"timeout": timeout.String(),
+	})
+
+	retryInterval := time.Second * 10 // Check every 10 seconds
+	maxRetries := int(timeout / retryInterval)
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			tflog.Debug(ctx, "Waiting for VM status check", map[string]interface{}{
+				"attempt":      attempt + 1,
+				"max_attempts": maxRetries,
+				"vm_id":        vmId,
+			})
+			time.Sleep(retryInterval)
+		}
+
+		// Get all VMs and find the one matching our ID
+		vms, err := r.client.ListVmsV3()
+		if err != nil {
+			tflog.Warn(ctx, "Error retrieving VMs while waiting for availability", map[string]interface{}{
+				"error":   err.Error(),
+				"attempt": attempt + 1,
+				"vm_id":   vmId,
+			})
+			continue // Continue retrying on API errors
+		}
+
+		// Find the VM by ID
+		var foundVm *fluenceapi.RunningInstanceV3
+		for _, vm := range vms {
+			if vm.Id == vmId {
+				foundVm = &vm
+				break
+			}
+		}
+
+		if foundVm == nil {
+			tflog.Warn(ctx, "VM not found while waiting for availability", map[string]interface{}{
+				"attempt": attempt + 1,
+				"vm_id":   vmId,
+			})
+			continue // Continue retrying if VM not found
+		}
+
+		tflog.Debug(ctx, "Checking VM status", map[string]interface{}{
+			"vm_id":   vmId,
+			"status":  foundVm.Status,
+			"attempt": attempt + 1,
+		})
+
+		// Update the model with current data
+		data.Status = types.StringValue(foundVm.Status)
+		data.StatusChangedAt = types.StringValue(foundVm.StatusChangedAt)
+		data.PricePerEpoch = types.StringValue(foundVm.PricePerEpoch)
+		data.CreatedAt = types.StringValue(foundVm.CreatedAt)
+		data.NextBillingAt = types.StringValue(foundVm.NextBillingAt)
+		data.ReservedBalance = types.StringValue(foundVm.ReservedBalance)
+		data.TotalSpent = types.StringValue(foundVm.TotalSpent)
+
+		if foundVm.OsImage != nil {
+			data.OsImage = types.StringValue(*foundVm.OsImage)
+		}
+
+		if foundVm.PublicIp != nil {
+			data.PublicIp = types.StringValue(*foundVm.PublicIp)
+		} else {
+			data.PublicIp = types.StringNull()
+		}
+
+		if foundVm.VmName != nil {
+			data.Name = types.StringValue(*foundVm.VmName)
+		}
+
+		// Check if VM has reached active status
+		if foundVm.Status == "Active" {
+			tflog.Info(ctx, "VM is now active", map[string]interface{}{
+				"vm_id":        vmId,
+				"total_time":   time.Duration(attempt) * retryInterval,
+				"final_status": foundVm.Status,
+			})
+			return nil
+		}
+
+		// Check for failure states that we should not wait through
+		if foundVm.Status == "failed" || foundVm.Status == "error" || foundVm.Status == "Failed" || foundVm.Status == "Error" {
+			return fmt.Errorf("VM creation failed with status: %s", foundVm.Status)
+		}
+
+		tflog.Debug(ctx, "VM not yet active, continuing to wait", map[string]interface{}{
+			"vm_id":          vmId,
+			"current_status": foundVm.Status,
+			"time_elapsed":   time.Duration(attempt+1) * retryInterval,
+			"time_remaining": timeout - (time.Duration(attempt+1) * retryInterval),
+		})
+	}
+
+	// If we've exhausted all retries, return the current status in the error
+	currentStatus := "unknown"
+	if !data.Status.IsNull() {
+		currentStatus = data.Status.ValueString()
+	}
+
+	return fmt.Errorf("VM did not become active within %v (current status: %s)", timeout, currentStatus)
 }
