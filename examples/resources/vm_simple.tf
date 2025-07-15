@@ -50,6 +50,11 @@ resource "fluence_vm" "example" {
   # Location preference (optional)
   datacenter_countries = ["US", "DE"]
   
+  # Configure timeouts (optional)
+  timeouts {
+    create = "15m"  # Wait up to 15 minutes for VM to become active
+  }
+  
   # Ensure SSH key is created first
   depends_on = [fluence_ssh_key.vm_key]
 }

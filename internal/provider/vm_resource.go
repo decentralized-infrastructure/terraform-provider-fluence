@@ -6,6 +6,7 @@ import (
 	"time"
 
 	fluenceapi "github.com/decentralized-infrastructure/fluence-api-client-go"
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -52,6 +53,9 @@ type VmResourceModel struct {
 	ReservedBalance types.String `tfsdk:"reserved_balance"`
 	TotalSpent      types.String `tfsdk:"total_spent"`
 	PublicIp        types.String `tfsdk:"public_ip"`
+
+	// Timeouts
+	Timeouts timeouts.Value `tfsdk:"timeouts"`
 }
 
 // OpenPortModel represents an open port configuration
@@ -166,6 +170,11 @@ func (r *VmResource) Schema(ctx context.Context, req resource.SchemaRequest, res
 				Computed:            true,
 				MarkdownDescription: "Public IP address of the VM",
 			},
+		},
+		Blocks: map[string]schema.Block{
+			"timeouts": timeouts.Block(ctx, timeouts.Opts{
+				Create: true,
+			}),
 		},
 	}
 }
@@ -288,7 +297,13 @@ func (r *VmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	}
 
 	// Wait for VM to become active before considering creation complete
-	err = r.waitForVmActive(ctx, &data)
+	createTimeout, diags := data.Timeouts.Create(ctx, 10*time.Minute)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	err = r.waitForVmActive(ctx, &data, createTimeout)
 	if err != nil {
 		resp.Diagnostics.AddError("VM Creation Error", fmt.Sprintf("VM was created but failed to become active: %s", err))
 		return
@@ -491,17 +506,15 @@ func (r *VmResource) ImportState(ctx context.Context, req resource.ImportStateRe
 }
 
 // waitForVmActive waits for a VM to reach the "Active" status
-func (r *VmResource) waitForVmActive(ctx context.Context, data *VmResourceModel) error {
+func (r *VmResource) waitForVmActive(ctx context.Context, data *VmResourceModel, timeout time.Duration) error {
 	vmId := data.ID.ValueString()
 	tflog.Debug(ctx, "Waiting for VM to become active", map[string]interface{}{
-		"vm_id": vmId,
+		"vm_id":   vmId,
+		"timeout": timeout.String(),
 	})
 
-	// Use a fixed timeout of 10 minutes for VM creation
-	createTimeout := 10 * time.Minute
-
 	retryInterval := time.Second * 10 // Check every 10 seconds
-	maxRetries := int(createTimeout / retryInterval)
+	maxRetries := int(timeout / retryInterval)
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
@@ -589,7 +602,7 @@ func (r *VmResource) waitForVmActive(ctx context.Context, data *VmResourceModel)
 			"vm_id":          vmId,
 			"current_status": foundVm.Status,
 			"time_elapsed":   time.Duration(attempt+1) * retryInterval,
-			"time_remaining": createTimeout - (time.Duration(attempt+1) * retryInterval),
+			"time_remaining": timeout - (time.Duration(attempt+1) * retryInterval),
 		})
 	}
 
@@ -599,5 +612,5 @@ func (r *VmResource) waitForVmActive(ctx context.Context, data *VmResourceModel)
 		currentStatus = data.Status.ValueString()
 	}
 
-	return fmt.Errorf("VM did not become active within %v (current status: %s)", createTimeout, currentStatus)
+	return fmt.Errorf("VM did not become active within %v (current status: %s)", timeout, currentStatus)
 }
