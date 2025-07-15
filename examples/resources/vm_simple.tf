@@ -16,8 +16,7 @@ provider "fluence" {
 # Create an SSH key for the VM
 resource "fluence_ssh_key" "vm_key" {
   name       = "simple-vm-key"
-  # Replace with your actual public key associated with a private key you control
-  public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKgJIjnDg1DjqOOxINs78oU3f7PJXIyq9uiNocNVhXNx user@example.com"
+  public_key = file("~/.ssh/id_rsa.pub") # Ensure this file exists and contains your public key
 }
 
 # Create a simple VM
