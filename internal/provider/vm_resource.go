@@ -40,9 +40,11 @@ type VmResourceModel struct {
 	Instances types.Int64     `tfsdk:"instances"`
 
 	// Constraints (optional)
-	BasicConfiguration       types.String   `tfsdk:"basic_configuration"`
-	MaxTotalPricePerEpochUsd types.String   `tfsdk:"max_total_price_per_epoch_usd"`
-	Countries                []types.String `tfsdk:"datacenter_countries"`
+	BasicConfiguration       types.String              `tfsdk:"basic_configuration"`
+	MaxTotalPricePerEpochUsd types.String              `tfsdk:"max_total_price_per_epoch_usd"`
+	Countries                []types.String            `tfsdk:"datacenter_countries"`
+	HardwareConstraints      []HardwareConstraintModel `tfsdk:"hardware_constraints"`
+	AdditionalResources      []AdditionalResourceModel `tfsdk:"additional_resources"`
 
 	// Computed fields
 	Status          types.String `tfsdk:"status"`
@@ -62,6 +64,25 @@ type VmResourceModel struct {
 type OpenPortModel struct {
 	Port     types.Int64  `tfsdk:"port"`
 	Protocol types.String `tfsdk:"protocol"`
+}
+
+// HardwareConstraintModel represents hardware constraints
+type HardwareConstraintModel struct {
+	Cpu     []CpuHardwareModel     `tfsdk:"cpu"`
+	Memory  []MemoryHardwareModel  `tfsdk:"memory"`
+	Storage []StorageHardwareModel `tfsdk:"storage"`
+}
+
+// AdditionalResourceModel represents additional resources
+type AdditionalResourceModel struct {
+	Storage []AdditionalStorageModel `tfsdk:"storage"`
+}
+
+// AdditionalStorageModel represents additional storage resources
+type AdditionalStorageModel struct {
+	Supply types.Int64  `tfsdk:"supply"`
+	Units  types.String `tfsdk:"units"`
+	Type   types.String `tfsdk:"type"`
 }
 
 func (r *VmResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -135,6 +156,86 @@ func (r *VmResource) Schema(ctx context.Context, req resource.SchemaRequest, res
 				MarkdownDescription: "List of allowed datacenter countries",
 				ElementType:         types.StringType,
 				Optional:            true,
+			},
+			"hardware_constraints": schema.ListNestedAttribute{
+				MarkdownDescription: "Hardware constraints for VM placement",
+				Optional:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"cpu": schema.ListNestedAttribute{
+							MarkdownDescription: "CPU hardware constraints",
+							Optional:            true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"architecture": schema.StringAttribute{
+										MarkdownDescription: "CPU architecture (e.g., x86_64, arm64)",
+										Required:            true,
+									},
+									"manufacturer": schema.StringAttribute{
+										MarkdownDescription: "CPU manufacturer (e.g., Intel, AMD)",
+										Required:            true,
+									},
+								},
+							},
+						},
+						"memory": schema.ListNestedAttribute{
+							MarkdownDescription: "Memory hardware constraints",
+							Optional:            true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"type": schema.StringAttribute{
+										MarkdownDescription: "Memory type (e.g., DDR4, DDR5)",
+										Required:            true,
+									},
+									"generation": schema.StringAttribute{
+										MarkdownDescription: "Memory generation",
+										Required:            true,
+									},
+								},
+							},
+						},
+						"storage": schema.ListNestedAttribute{
+							MarkdownDescription: "Storage hardware constraints",
+							Optional:            true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"type": schema.StringAttribute{
+										MarkdownDescription: "Storage type (HDD, SSD, NVMe)",
+										Required:            true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			"additional_resources": schema.ListNestedAttribute{
+				MarkdownDescription: "Additional resources to be allocated",
+				Optional:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"storage": schema.ListNestedAttribute{
+							MarkdownDescription: "Additional storage resources",
+							Optional:            true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"supply": schema.Int64Attribute{
+										MarkdownDescription: "Amount of storage to allocate",
+										Required:            true,
+									},
+									"units": schema.StringAttribute{
+										MarkdownDescription: "Storage units (GB, TB)",
+										Required:            true,
+									},
+									"type": schema.StringAttribute{
+										MarkdownDescription: "Storage type (HDD, SSD, NVMe)",
+										Required:            true,
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 
 			// Computed attributes
@@ -238,7 +339,7 @@ func (r *VmResource) Create(ctx context.Context, req resource.CreateRequest, res
 
 	// Build constraints
 	var constraints *fluenceapi.OfferConstraints
-	if !data.BasicConfiguration.IsNull() || !data.MaxTotalPricePerEpochUsd.IsNull() || len(data.Countries) > 0 {
+	if !data.BasicConfiguration.IsNull() || !data.MaxTotalPricePerEpochUsd.IsNull() || len(data.Countries) > 0 || len(data.HardwareConstraints) > 0 || len(data.AdditionalResources) > 0 {
 		constraints = &fluenceapi.OfferConstraints{}
 
 		if !data.BasicConfiguration.IsNull() {
@@ -259,6 +360,55 @@ func (r *VmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			constraints.Datacenter = &fluenceapi.DatacenterConstraint{
 				Countries: countries,
 			}
+		}
+
+		// Build hardware constraints
+		if len(data.HardwareConstraints) > 0 {
+			hwConstraint := &fluenceapi.HardwareConstraints{}
+
+			for _, hwc := range data.HardwareConstraints {
+				// Convert CPU constraints
+				for _, cpu := range hwc.Cpu {
+					hwConstraint.Cpu = append(hwConstraint.Cpu, fluenceapi.CpuHardware{
+						Architecture: cpu.Architecture.ValueString(),
+						Manufacturer: cpu.Manufacturer.ValueString(),
+					})
+				}
+
+				// Convert memory constraints
+				for _, mem := range hwc.Memory {
+					hwConstraint.Memory = append(hwConstraint.Memory, fluenceapi.MemoryHardware{
+						Type:       mem.Type.ValueString(),
+						Generation: mem.Generation.ValueString(),
+					})
+				}
+
+				// Convert storage constraints
+				for _, storage := range hwc.Storage {
+					hwConstraint.Storage = append(hwConstraint.Storage, fluenceapi.StorageHardware{
+						Type: storage.Type.ValueString(),
+					})
+				}
+			}
+
+			constraints.Hardware = hwConstraint
+		}
+
+		// Build additional resources
+		if len(data.AdditionalResources) > 0 {
+			addlResources := &fluenceapi.AdditionalResources{}
+
+			for _, ar := range data.AdditionalResources {
+				for _, storage := range ar.Storage {
+					addlResources.Storage = append(addlResources.Storage, fluenceapi.AdditionalStorage{
+						Supply: uint64(storage.Supply.ValueInt64()),
+						Units:  storage.Units.ValueString(),
+						Type:   storage.Type.ValueString(),
+					})
+				}
+			}
+
+			constraints.AdditionalResources = addlResources
 		}
 	}
 
