@@ -23,12 +23,15 @@ Virtual Machine resource
 
 ### Optional
 
+- `additional_resources` (Attributes List) Additional resources to be allocated (see [below for nested schema](#nestedatt--additional_resources))
 - `basic_configuration` (String) Basic configuration constraint
 - `datacenter_countries` (List of String) List of allowed datacenter countries
+- `hardware_constraints` (Attributes List) Hardware constraints for VM placement (see [below for nested schema](#nestedatt--hardware_constraints))
 - `hostname` (String) VM hostname (optional)
 - `instances` (Number) Number of VM instances to create
 - `max_total_price_per_epoch_usd` (String) Maximum total price per epoch in USD
 - `open_ports` (Attributes List) List of ports to open on the VM (see [below for nested schema](#nestedatt--open_ports))
+- `timeouts` (Attributes) (see [below for nested schema](#nestedatt--timeouts))
 
 ### Read-Only
 
@@ -42,10 +45,71 @@ Virtual Machine resource
 - `status_changed_at` (String) VM status change timestamp
 - `total_spent` (String) Total amount spent
 
+<a id="nestedatt--additional_resources"></a>
+### Nested Schema for `additional_resources`
+
+Optional:
+
+- `storage` (Attributes List) Additional storage resources (see [below for nested schema](#nestedatt--additional_resources--storage))
+
+<a id="nestedatt--additional_resources--storage"></a>
+### Nested Schema for `additional_resources.storage`
+
+Required:
+
+- `supply` (Number) Amount of storage to allocate
+- `type` (String) Storage type (HDD, SSD, NVMe)
+- `units` (String) Storage units (GB, TB)
+
+
+<a id="nestedatt--hardware_constraints"></a>
+### Nested Schema for `hardware_constraints`
+
+Optional:
+
+- `cpu` (Attributes List) CPU hardware constraints (see [below for nested schema](#nestedatt--hardware_constraints--cpu))
+- `memory` (Attributes List) Memory hardware constraints (see [below for nested schema](#nestedatt--hardware_constraints--memory))
+- `storage` (Attributes List) Storage hardware constraints (see [below for nested schema](#nestedatt--hardware_constraints--storage))
+
+<a id="nestedatt--hardware_constraints--cpu"></a>
+### Nested Schema for `hardware_constraints.cpu`
+
+Required:
+
+- `architecture` (String) CPU architecture (e.g., x86_64, arm64)
+- `manufacturer` (String) CPU manufacturer (e.g., Intel, AMD)
+
+
+<a id="nestedatt--hardware_constraints--memory"></a>
+### Nested Schema for `hardware_constraints.memory`
+
+Required:
+
+- `generation` (String) Memory generation
+- `type` (String) Memory type (e.g., DDR4, DDR5)
+
+
+<a id="nestedatt--hardware_constraints--storage"></a>
+### Nested Schema for `hardware_constraints.storage`
+
+Required:
+
+- `type` (String) Storage type (HDD, SSD, NVMe)
+
+
 <a id="nestedatt--open_ports"></a>
 ### Nested Schema for `open_ports`
 
 Required:
 
 - `port` (Number) Port number
+- `protocol` (String) Protocol (tcp/udp)
+
+
+<a id="nestedatt--timeouts"></a>
+### Nested Schema for `timeouts`
+
+Optional:
+
+- `create` (String)
 - `protocol` (String) Protocol (tcp/udp)
